@@ -131,6 +131,10 @@ class KLib():
         # 읽어들인 adc 데이터 부분 삭제
         self.buf = self.buf[self.datasize+96+sp:]
 
+        # 수신 버퍼에 데이터가 10frame 이상 쌓일경우 clear
+        if len(self.buf) > self.datasize * 10:
+            self.buf = bytearray(range(0))
+
 
     def printadc(self):        
         os.system('cls')
