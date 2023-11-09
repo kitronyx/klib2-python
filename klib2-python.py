@@ -35,12 +35,17 @@ class KLib():
         self.result = None
 
         self.client_socket_connection = False
+        
+        # New variable
+        self.totalPacketSize = 0 
+        self.staticPacketLen = 96
 
     #TcpIP 연결 시도
     def init(self):
         try:
             self.addr = (self.server_ip, self.port) #server address 정보
             self.client_socket = socket(AF_INET, SOCK_STREAM) #소켓 정보
+            self.client_socket.setsockopt(SOL_SOCKET, SO_RCVBUF, 50000)
             
             self.client_socket.connect(self.addr) # tcpip연결
         except Exception as e:
@@ -53,7 +58,7 @@ class KLib():
 
         self.buf = resp
         self.datasize = 5000
-        self.BufSize = self.datasize +200
+        self.BufSize = self.datasize + 200
         sp = 0
         
 
@@ -74,25 +79,25 @@ class KLib():
                     self.datasize = self.nrow * self.ncol
                     self.BufSize = self.datasize + 200
                     break
-        
-       
-       
 
         self.device = self.buf[4:28]
         self.sensor = self.buf[28:52]
         self.nrow = int.from_bytes(self.buf[88:91],byteorder='little')
         self.ncol = int.from_bytes(self.buf[92:95],byteorder='little')
         self.datasize = self.nrow * self.ncol
-        self.BufSize
-
+       
+        #Fix this code
+        self.totalPacketSize = 100 + self.datasize
+        
          #header, tail을 뺀 버퍼를 result에 집어넣음
         self.result = self.buf[sp + 4 : sp + self.datasize]
 
         # rawdata array 생성
         for i in range(96,self.datasize+96):
             self.adc.append(int(self.buf[i]))
-            
         
+        #Fix this code
+        self.buf = b''
 
     def check_tcp_connection(self):
         if(self.client_socket_connection == True):
@@ -111,9 +116,10 @@ class KLib():
     def read(self):
         self.buf  = self.buf + self.client_socket.recv(self.BufSize)
 
-        #header가 2개 이상이 아닌경우 패킷이 다안들어왔을 가능성이 있음
+        #header 검색
         while(1):
-            if(len(self.buf) > self.BufSize):
+            #Fix this code
+            if(len(self.buf) > self.totalPacketSize):
                 break
             resp = self.client_socket.recv(self.BufSize)
             self.buf = self.buf + resp
@@ -121,23 +127,33 @@ class KLib():
         #header 위치 찾기
         sp = 0
         while(1):
-            sp = self.buf.index(0x7e,sp)
+            try:
+                sp = self.buf.index(0x7e,sp)
+            except error:
+                self.buf = None
+                print("Error buf None")
+                return
+            #Fix this code
+            if(sp+self.totalPacketSize>len(self.buf)):
+                self.buf = self.buf[sp:]
+                return
             if(self.buf[sp+1] == 0x7e and self.buf[sp+2]== 0x7e and self.buf[sp+3] == 0x7e):
                 break
-
-        for i in range(96+sp,self.datasize+96+sp):
-             self.adc[i-96-sp] = int(self.buf[i])
+        
+        #Fix this code
+        for i in range(self.staticPacketLen+sp,self.datasize+self.staticPacketLen+sp):
+            self.adc[i-self.staticPacketLen-sp] = int(self.buf[i])
 
         # 읽어들인 adc 데이터 부분 삭제
-        self.buf = self.buf[self.datasize+96+sp:]
+        self.buf = self.buf[sp+self.totalPacketSize:]
 
         # 수신 버퍼에 데이터가 10frame 이상 쌓일경우 clear
-        if len(self.buf) > self.datasize * 10:
-            self.buf = bytearray(range(0))
-
+        if len(self.buf) > self.totalPacketSize * 10:
+            self.buf = b''
+        
 
     def printadc(self):        
-        os.system('cls')
+        #os.system('cls')
         for i in range(self.nrow):
             write_str = ""
             for j in range(self.ncol):
@@ -155,6 +171,7 @@ if __name__ == "__main__":
     while(1):
         klib.read()        
         klib.printadc()
+        
         tick = tick + 1
         #FPS 계산
         curTime = time.time()
@@ -163,3 +180,4 @@ if __name__ == "__main__":
             prevTime = curTime
             tick = 0
         print("FPS : ", FPS)
+        
