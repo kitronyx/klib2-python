@@ -114,14 +114,15 @@ class KLib():
 
     #패킷읽기
     def read(self):
-        self.buf  = self.buf + self.client_socket.recv(self.BufSize)
+        self.buf  = self.buf + self.client_socket.recv(self.totalPacketSize)
 
         #header 검색
         while(1):
             #Fix this code
             if(len(self.buf) > self.totalPacketSize):
                 break
-            resp = self.client_socket.recv(self.BufSize)
+            #Fix this code
+            resp = self.client_socket.recv(self.totalPacketSize)
             self.buf = self.buf + resp
         
         #header 위치 찾기
@@ -143,16 +144,16 @@ class KLib():
         #Fix this code
         for i in range(self.staticPacketLen+sp,self.datasize+self.staticPacketLen+sp):
             self.adc[i-self.staticPacketLen-sp] = int(self.buf[i])
-
+        
         # 읽어들인 adc 데이터 부분 삭제
         self.buf = self.buf[sp+self.totalPacketSize:]
 
         # 수신 버퍼에 데이터가 10frame 이상 쌓일경우 clear
-        if len(self.buf) > self.totalPacketSize * 10:
+        if len(self.buf) > self.totalPacketSize * 3:
             self.buf = b''
         
-
-    def printadc(self):        
+    def printadc(self):    
+        #It can be a cause of long latency. "print" command,too.
         #os.system('cls')
         for i in range(self.nrow):
             write_str = ""
