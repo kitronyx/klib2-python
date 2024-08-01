@@ -55,8 +55,9 @@ class KLib():
              #header 위치 찾기            
             while(1):
                 sp = self.buf.index(0x7e,sp)
-                if(self.buf[sp+1] == 0x7e and self.buf[sp+2]== 0x7e and self.buf[sp+3] == 0x7e):                    
-                    self.totalPacketSize = int.from_bytes(self.buf[4:7],byteorder='little')
+                if(self.buf[sp+1] == 0x7e and self.buf[sp+2]== 0x7e and self.buf[sp+3] == 0x7e):      
+                    # Header,Tail의 크기를 뺀 PackestSize가 들어온다                                  
+                    self.totalPacketSize = int.from_bytes(self.buf[4:7],byteorder='little') + 8
                     self.nrow = int.from_bytes(self.buf[88:91],byteorder='little')
                     self.ncol = int.from_bytes(self.buf[92:95],byteorder='little')
                     self.datasize = self.nrow * self.ncol
