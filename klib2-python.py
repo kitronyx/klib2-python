@@ -11,14 +11,13 @@ class KLib():
         self.nrow = 0
         self.ncol = 0
         # 수신받을 데이터가 length보다 크다면, 해당 length를 수정하여야 한다.
-        self.length = 20000
-        self.datasize = 20000
+        self.totalPacketSize = 20000
+        self.datasize = 20000        
         self.dataType = "Raw"
         self.dataMatrix = []
         self.buf = None
         self.client_socket = None
         self.client_socket_connection = False
-        self.totalPacketSize = 0
         self.staticPacketLen = 96
 
     def init_connection(self):
@@ -39,7 +38,7 @@ class KLib():
         if self.init_connection() is False:
             return
 
-        resp = self.client_socket.recv(self.length) #버퍼 받기
+        resp = self.client_socket.recv(self.totalPacketSize) #버퍼 받기
 
         self.buf = resp
         
@@ -48,16 +47,16 @@ class KLib():
 
         #header가 2개 이상이 아닌경우 패킷이 다안들어왔을 가능성이 있음
         while(1):
-            if(len(self.buf) > self.length+100):
+            if(len(self.buf) >= self.totalPacketSize):
                 break
-            resp = self.client_socket.recv(self.length)
+            resp = self.client_socket.recv(self.totalPacketSize)
             self.buf = self.buf + resp
 
              #header 위치 찾기            
             while(1):
                 sp = self.buf.index(0x7e,sp)
                 if(self.buf[sp+1] == 0x7e and self.buf[sp+2]== 0x7e and self.buf[sp+3] == 0x7e):                    
-                    self.length = int.from_bytes(self.buf[4:7],byteorder='little')
+                    self.totalPacketSize = int.from_bytes(self.buf[4:7],byteorder='little')
                     self.nrow = int.from_bytes(self.buf[88:91],byteorder='little')
                     self.ncol = int.from_bytes(self.buf[92:95],byteorder='little')
                     self.datasize = self.nrow * self.ncol
@@ -67,28 +66,27 @@ class KLib():
         self.sensor = self.buf[28:52]
         self.nrow = int.from_bytes(self.buf[88:91],byteorder='little')
         self.ncol = int.from_bytes(self.buf[92:95],byteorder='little')
-        self.datasize = self.nrow * self.ncol
+        self.bufSize = self.nrow * self.ncol
 
 
         # 초기 통신 시 length 크기가 datasize + 200 보다 작다면 Raw ADC 데이터로 판별
         # 아니라면 Force 데이터로 판별함 (Force의 경우 8byte 통신으로 데이터 크기가 크다)
-        if(self.datasize + 200 >= self.length):
+        if(self.datasize + 200 >= self.totalPacketSize):
             self.dataType = "Raw"
         else:
             self.dataType = "Force"        
+            self.bufSize *=8
        
-        #Fix this code
-        self.totalPacketSize = 100 + self.length
         
          #header, tail을 뺀 버퍼를 result에 집어넣음
-        self.result = self.buf[sp + 4 : sp + self.length]
+        self.result = self.buf[sp + 4 : sp + self.totalPacketSize]
 
         # dataMatrix array 생성
         if self.dataType == "Raw":
-            for i in range(96,self.length+96):
+            for i in range(96,self.bufSize+96):
                 self.dataMatrix.append(int(self.buf[i]))
         else:
-            for i in range(96,self.length+96,8):
+            for i in range(96,self.bufSize+96,8):
                 self.dataMatrix.append(struct.unpack('d',self.buf[i:i+8])[0])
         
         #Fix this code
@@ -143,10 +141,10 @@ class KLib():
 
           # dataMatrix array 생성
         if self.dataType == "Raw":
-            for i in range(self.staticPacketLen+sp,self.datasize+self.staticPacketLen+sp):
+            for i in range(self.staticPacketLen+sp,self.bufSize+self.staticPacketLen+sp):
                 self.dataMatrix[i-self.staticPacketLen-sp] = int(self.buf[i])
         else:
-            for i in range(self.staticPacketLen+sp, self.length+self.staticPacketLen+sp, 8):
+            for i in range(self.staticPacketLen+sp, self.bufSize+self.staticPacketLen+sp, 8):
                 index = int((i-self.staticPacketLen-sp) / 8)
                 self.dataMatrix[index] = (struct.unpack('d', self.buf[i:i+8])[0])
         
