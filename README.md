@@ -2,7 +2,7 @@
 
 ![Origin](img/KLib2_python_Demo.png)
 
-Simple example of Processing API for Snowforce 3.
+Simple example of Processing API for ForceLAB2 or Snowforce 3.
 
 Max FPS(Frames per second) : 30
 
