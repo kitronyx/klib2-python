@@ -11,8 +11,8 @@ class KLib():
         self.nrow = 0
         self.ncol = 0
         # 수신받을 데이터가 length보다 크다면, 해당 length를 수정하여야 한다.
-        self.totalPacketSize = 20000
-        self.datasize = 20000        
+        self.totalPacketSize = 40000
+        self.datasize = 40000        
         self.dataType = "Raw"
         self.dataMatrix = []
         self.buf = None
